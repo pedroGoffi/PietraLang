@@ -1,13 +1,16 @@
 #ifndef  __TOKEN_CPP__
 #define  __TOKEN_CPP__
+// TODO: optimize this file
 
-#include <string>
-using namespace std;
+#include <cassert>
+#include <string.h>
 
 
 enum TokenKind {
   TK_HASHTAG,		// #
   TK_DOLLAR,		// $
+  TK_STRING_LITERAL,    // '"' [*] '"'
+  TK_NAME,		// identifier
   TK_AMPERSAND,		// &
   TK_STAR,		// *
   TK_COMMA,		// ,
@@ -34,14 +37,12 @@ enum TokenKind {
   TK_EQ,                // == 
   TK_NEQ,               // !=
   TK_SHL,		// <<
-  TK_SHR,		// >>
-  
+  TK_SHR,		// >>  
   TK_BANG,              // !
-  TK_EOF,		// '\0'
   TK_INT_LITERAL,	// [INT]
   TK_DDOT,		// :
   TK_DDDOT,		// ::
-  TK_NAME		// identifier
+  TK_EOF,		// '\0'
 };
 
 //class TokenPos{FILENAME, LINE, COLUMN}
@@ -55,7 +56,11 @@ public:
     float FLOAT;
   } as_digit;
   bool is_binary();
+  bool is_unary();
   bool is_mul();
+  bool is_cmp();
+  bool is_and();
+  
 };
 bool Token::is_binary(){
   return
@@ -63,9 +68,40 @@ bool Token::is_binary(){
     this->kind == TK_TAKEAWAY
     ;
 }
+bool Token::is_unary(){
+  assert(this->text);
+  return
+    !strcmp(this->text, "+") or
+    !strcmp(this->text, "-") or
+    !strcmp(this->text, "&") or
+    !strcmp(this->text, "*") or
+    !strcmp(this->text, "!")        
+    ;
+}
 bool Token::is_mul(){
   return
     this->kind == TK_STAR
+    ;
+}
+bool Token::is_cmp(){
+  assert(this->text);
+ 
+  return
+    !strcmp(this->text, "<")  or
+    !strcmp(this->text, "<=") or
+    !strcmp(this->text, "==") or
+    !strcmp(this->text, "!=") or
+    !strcmp(this->text, ">")  or
+    !strcmp(this->text, ">=")    
+    ;
+}
+bool Token::is_and(){
+  assert(this->text);
+  return
+    !strcmp(this->text, "and") or
+    !strcmp(this->text, "or")  or
+    !strcmp(this->text, "||")  or
+    !strcmp(this->text, "&&") 
     ;
 }
 #endif/*__TOKEN_CPP__*/

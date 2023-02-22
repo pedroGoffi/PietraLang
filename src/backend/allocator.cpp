@@ -11,7 +11,7 @@ class Allocator{
 public:
   // TODO: if need, more allocator functions
   vector<T> vec;
-
+  ~Allocator() = default;
 };
 
 #endif /*__ALLOCATOR_CPP__*/

@@ -1,6 +1,8 @@
+  SIMPLE
+  COMPTIME
+  NO MACROS
 TODOS:
 -- make the language syntax
--- choose an allocator <thinking of std::vector>
 -- make the compiler target <thinking of llvm intermediate representation>
 -- make smart parrser <namespaces>
 
@@ -8,15 +10,7 @@ language used:
   * = more than one
   ? = optional
 
-expr_atom =  INT					|
-	     FLOAT					|
-	     STRING					|
-	     NAME					|
-	     expr 'cast_kw' type
-
-stmt      = 'if_kw'  expr stmt ('elif' expr stmt)*? ('else' stmt)*? |
-	     'for_kw' stmt_list
-
+  Paser path:
 expr_list     = expr (',' expr_list)*
 operand_expr  = INT		|
 	      FLOAT		|
@@ -35,11 +29,12 @@ add_op        = '+' |
 		'^'
 add_expr      = mul_expr (add_op mul_expr)*
 cmp_op        = LT '<' | LTEQ '<='| EQ '=='| NEQ '!=' | GT '>'| GTEQ '>='
-cmp_expr      = mul_expr (cmp_op mul_expr)*
+cmp_expr      = add_expr (cmp_op add_expr)*
 and_expr      = cmp_expr (AND cmp_expr)*
 or_expr       = and_expr (OR and_expr)*
-ternary_expr  = ternary_expr 'if_kw' or_expr 'else' ternary_expr |
-	        or_expr
+ternary_expr  = or_expr ('if' ternary_expr else' ternary_expr)*
 
+where_body    = expr_list '=>' stmt
+where_stmt    = "where" expr_list '{' where_body '}'
  
 expr = ternary_expr 

@@ -113,7 +113,6 @@ Tokenizer::Tokenizer(const char* stream){
 }
 
 Token* Tokenizer::next(){
-
   const char* strBegin = this->stream;
   // LITERALS
   while(isspace(*this->stream)){
@@ -149,14 +148,21 @@ Token* Tokenizer::next(){
   }
   // STRINGS
   else if(*this->stream == '"'){
-    printf("TODO: tokenize a string.\n");
-    exit(1);
+    this->stream++;
+    strBegin = this->stream;
+    while(*this->stream and *this->stream != '"')
+      ++this->stream;
+    
+    assert(*this->stream == '"');
+    this->token.kind = TokenKind::TK_STRING_LITERAL;
+    this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
+    return &this->token;
   }
   // KEYWORDS
   // KW = ''
-  else if(Token* tk = this->is_simple_keyword()) return tk;
-  else if(Token* tk = this->is_duo_keyword())    return tk;
-  else if(Token* tk = this->is_complex_keyword())    return tk;
+  else if(Token* tk = this->is_simple_keyword())	return tk;
+  else if(Token* tk = this->is_duo_keyword())		return tk;
+  else if(Token* tk = this->is_complex_keyword())	return tk;
   
   
   else {
