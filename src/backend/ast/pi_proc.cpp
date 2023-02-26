@@ -9,6 +9,7 @@ class pi_proc{
   string name_;
   bool   inlined_   = false;
   bool   externed_  = false;
+public:
   unique_ptr<pi_type> ret_type;
   unique_ptr<Stmt>*  block_;
 
@@ -16,11 +17,16 @@ public:
   string& name();
   bool&   inlined();
   bool&   externed();
+  
+  unique_ptr<pi_type> type();
   void set_type(unique_ptr<pi_type> ret_type);
   void set_block(unique_ptr<Stmt> block);
   static void print(FILE* stream, unique_ptr<pi_proc> node);
 };
 // PROC IMPL
+unique_ptr<pi_type> pi_proc::type(){
+  return move(this->ret_type);
+}
 string& pi_proc::name(){
   return this->name_;
 }

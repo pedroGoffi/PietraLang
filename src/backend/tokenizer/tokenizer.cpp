@@ -114,27 +114,52 @@ Tokenizer::Tokenizer(const char* stream){
 }
 
 Token* Tokenizer::next(){
+  int col_diff  = 0;
+  int line_diff = 0;
+ _TOKENIZER_NEXT:
   const char* strBegin = this->stream;
-  // LITERALS
-  // TODO: TokenPos
+  
+  if(*this->stream == ' '){
+    col_diff++;
+    
+    this->stream++;
+    goto _TOKENIZER_NEXT;    
+  }
+  if(*this->stream == '\n'){
+    col_diff   = 0;        
+    line_diff += 1;
 
-  while(isspace(*this->stream)){
-    strBegin = ++this->stream;
-
+    
+    this->token.pos.col = 1;
+    this->stream++;    
+    goto _TOKENIZER_NEXT;
+  }
+  
+  if(isspace(*this->stream)){
+    printf("UNHANDLED SPACE PONCTUATION: %i.\n",
+	   (int)*this->stream);
+    exit(1);
+    
   }
   if(TokenizerRules::is_name(this->stream)){
     while(std::isalnum(*this->stream) or *this->stream == '_'){
+      col_diff++;
       this->stream++;
     }
     this->token.kind = TokenKind::TK_NAME;
     this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
     this->token.kind = TokenKind::TK_NAME;
 
+    this->token.pos.line += line_diff;
+    this->token.pos.col  += col_diff;
     return &this->token;
   }
   // DIGITS
   else if(TokenizerRules::is_digit(*this->stream)){
-    while(TokenizerRules::is_digit(*this->stream)) this->stream++;
+    while(TokenizerRules::is_digit(*this->stream)){
+      col_diff++;
+      this->stream++;
+    }
     // FLOATS
     if(*this->stream == '.'){
       printf("Error: FLOATS are not implemented yet.\n");
@@ -149,7 +174,8 @@ Token* Tokenizer::next(){
       // TOOD :this->token	= Scanner::scan_int(this);
     }
     assert(*this->stream != '.');
-
+    this->token.pos.line += line_diff;
+    this->token.pos.col  += col_diff;
     return &this->token;
   }
   // STRINGS
@@ -162,33 +188,52 @@ Token* Tokenizer::next(){
     assert(*this->stream == '"');
     this->token.kind = TokenKind::TK_STRING_LITERAL;
     this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
-
+    this->token.pos.line += line_diff;
+    this->token.pos.col  += col_diff;
     return &this->token;
   }
   // KEYWORDS
   // KW = ''
-  else if(Token* tk = this->is_simple_keyword())	return tk;
-  else if(Token* tk = this->is_duo_keyword())		return tk;
-  else if(Token* tk = this->is_complex_keyword())	return tk;
+  else if(Token* tk = this->is_simple_keyword()){
+    tk->pos.line += line_diff;
+    tk->pos.col  += col_diff;
+    return tk;
+  }
+  else if(Token* tk = this->is_duo_keyword()){
+    tk->pos.line += line_diff;
+    tk->pos.col  += col_diff;
+    return tk;
+  }
+  else if(Token* tk = this->is_complex_keyword()){
+    tk->pos.line += line_diff;
+    tk->pos.col  += col_diff;
+    return tk;
+  }
   
   // Custom poctuations
   else if(*this->stream == '-'){
     this->token.kind = TK_TAKEAWAY;
+    col_diff++;
     this->stream++;
   
     if(*this->stream == '-'){
       this->token.kind = TK_DTAKEAWAY;
+      col_diff++;
       this->stream++;      
     }
     else if(*this->stream == '>'){  
       this->token.kind = TK_ARROW;
+      col_diff++;
       this->stream++;
     }
     else if(*this->stream == '='){
       this->token.kind = TK_MINUS_ASIGN;
+      col_diff++;
       this->stream++;
     }
     this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
+    this->token.pos.line += line_diff;
+    this->token.pos.col  += col_diff;
     return &this->token;
     
   }
@@ -224,6 +269,8 @@ Token* Tokenizer::is_simple_keyword(){
       this->token.kind = kw.second;
       this->stream++;
       this->token.text = Scanner::str_ptr_range(begin, this->stream);
+
+      this->token.pos.col  += 1;
       return &this->token;
     }
   }
@@ -247,12 +294,14 @@ Token* Tokenizer::is_duo_keyword(){
   for(__duo_kws__& dk: duo_kws){
     if(*this->stream == dk.chr1){
       this->token.kind = dk.kind1;
+      this->token.pos.col++;
       this->stream++;
       if(*this->stream == dk.chr2){
 	this->token.kind  = dk.kind2;
+	this->token.pos.col++;
 	this->stream++;
       }
-      this->token.text = Scanner::str_ptr_range(begin, this->stream);
+      this->token.text = Scanner::str_ptr_range(begin, this->stream);      
       return &this->token;
     }
   }
@@ -278,14 +327,17 @@ Token* Tokenizer::is_complex_keyword(){
   for(auto& ckw : complex_kws){
     if(*this->stream == ckw.chr1){
       this->token.kind = ckw.kind1;
+      this->token.pos.col++;
       this->stream++;
       
       if(*this->stream == ckw.chr2){
 	this->token.kind = ckw.kind2;
+	this->token.pos.col++;
 	this->stream++;
       }
       else if(*this->stream == ckw.chr3){
 	this->token.kind = ckw.kind3;
+	this->token.pos.col++;
 	this->stream++;
       }
       this->token.text = Scanner::str_ptr_range(begin, this->stream);

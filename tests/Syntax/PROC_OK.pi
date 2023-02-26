@@ -1,0 +1,7 @@
+fib:: () -> some {
+  x: void = malloc
+  
+  if !x {
+    x := 1
+  }  
+}

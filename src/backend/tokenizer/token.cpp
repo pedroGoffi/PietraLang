@@ -5,6 +5,20 @@
 #include <cassert>
 #include <string.h>
 #include <iostream>
+using namespace std;
+
+struct CursorPos{
+  FILE*  fd;
+  string fname;
+  int    col;
+  int    line;
+};
+
+#define FMT_CPos "%s: %d: %d"
+#define ARG_CPos(x)				\
+  (x).fname.c_str(),				\
+    (x).line,					\
+    (x).col
 
 enum TokenKind {
   TK_HASHTAG,		// #
@@ -58,7 +72,8 @@ enum TokenKind {
 class Token{
 public:
   TokenKind   kind;
-  const char* text; 
+  string      text;
+  CursorPos   pos;
   union {
     int   INT;
     float FLOAT;
@@ -77,13 +92,12 @@ bool Token::is_binary(){
     ;
 }
 bool Token::is_unary(){
-  assert(this->text);
   return
-    !strcmp(this->text, "+") or
-    !strcmp(this->text, "-") or
-    !strcmp(this->text, "&") or
-    !strcmp(this->text, "*") or
-    !strcmp(this->text, "!")        
+    this->text == "+" or
+    this->text == "-" or
+    this->text == "&" or
+    this->text == "*" or
+    this->text == "!"        
     ;
 }
 bool Token::is_mul(){
@@ -91,25 +105,22 @@ bool Token::is_mul(){
     this->kind == TK_STAR
     ;
 }
-bool Token::is_cmp(){
-  assert(this->text);
- 
+bool Token::is_cmp(){ 
   return
-    !strcmp(this->text, "<")  or
-    !strcmp(this->text, "<=") or
-    !strcmp(this->text, "==") or
-    !strcmp(this->text, "!=") or
-    !strcmp(this->text, ">")  or
-    !strcmp(this->text, ">=")    
+    this->text == "<"  or
+    this->text == "<=" or
+    this->text == "==" or
+    this->text == "!=" or
+    this->text == ">"  or
+    this->text == ">="    
     ;
 }
 bool Token::is_and(){
-  assert(this->text);
   return
-    !strcmp(this->text, "and") or
-    !strcmp(this->text, "or")  or
-    !strcmp(this->text, "||")  or
-    !strcmp(this->text, "&&") 
+    this->text =="and" or
+    this->text =="or"  or
+    this->text =="||"  or
+    this->text =="&&" 
     ;
 }
 #endif/*__TOKEN_CPP__*/

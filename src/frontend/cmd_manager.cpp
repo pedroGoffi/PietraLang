@@ -1,12 +1,15 @@
 #ifndef  __CMD_MANAGER_CPP__
 #define  __CMD_MANAGER_CPP__
+
 #include <cassert>
+#include <iostream>
 
 
-namespace Flags{
-  const char* const FL_HELP = "-h";
-};
 class CMD_Manager{
+public:
+  // flags  
+  bool dump_ast = false;
+  //
   int*        argc;
   const char* flag;  
   char***     argv;
@@ -18,40 +21,25 @@ public:
   void parse_flags();
   const char* shift();
   void show_help(std::FILE*);
+  void simple_flag();
 };
 
 CMD_Manager::CMD_Manager(int* argc, char*** argv){
     this->argc		= argc;
     this->argv		= argv;
     this->program	= this->shift();
-  }
+    this->parse_flags();
+}
 void CMD_Manager::parse_flags(){
   while(*this->argc){
-    this->flag = this->shift();
+    
+    this->flag = this->shift();   
     if(*this->flag == '-'){
       this->flag++;
-      if(*this->flag == '-'){
-	// complex flag
-	printf("Error: complex flag is not implemented yet.\n");
-	exit(1);
-      }
-      else {
-	// simple flag
-	if(!strcmp(this->flag, "h")){
-	  this->show_help(stdout);
-	  exit(1);
-	}
-	else {
-	  printf("Error: undefined flag '-%s'.\n", this->flag);
-	  exit(1);
-	}
-      }
-     
+      this->simple_flag();
+      continue;
     }
-
-    else {
-      this->input_fp = this->flag;
-    }
+    this->input_fp = this->flag;    
   }
 }
 
@@ -72,5 +60,28 @@ void CMD_Manager::show_help(std::FILE* file){
   
   
 }
+void CMD_Manager::simple_flag(){
+  const char* flag_begin = this->flag - 1;
+  if(*this->flag == '-'){
+    // -[key] or --[word]
+    this->flag++;
+  }
+  // using string to make the code easier to read (for me)
+  std::string str = std::string(this->flag);
+  
+  if(str == "h" or str == "help"){
+    this->show_help(stdout);
+    exit(1);
+  }
 
+  if(str == "ast"){
+    this->dump_ast = true;
+  }
+  else {
+    fprintf(stderr,
+	    "Error: unknown flag: '%s'\n",
+	    flag_begin);
+    exit(1);
+  }
+}
 #endif /*__CMD_MANAGER_CPP__*/

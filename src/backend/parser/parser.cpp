@@ -2,20 +2,26 @@
 #define  __PARSER_CPP__
 
 #include <memory>
+#include <cstdarg>
+#include "../../frontend/reader.cpp"
 #include "../tokenizer/tokenizer.cpp"
-#include "../ast/pi_expr.cpp"
-#include "../ast/pi_stmt.cpp"
-#include "../ast/pi_types.cpp"
+
 #include "../ast/pi_decl.cpp"
+#include "../ast/pi_stmt.cpp"
+#include "../ast/pi_expr.cpp"
+#include "../ast/pi_types.cpp"
+
+
 using namespace std;
 
 
-#define SKIP_OPTIONAL_EOL_TK while(this->tokenizer->expect(TK_DCOMMA));
-
+#define SKIP_OPTIONAL_EOL_TK while(this->tokenizer->expect(TK_DCOMMA)){}
 
 
 class Parser{
 public:
+  bool err = false;
+  CursorPos pos;
   std::unique_ptr<Tokenizer> tokenizer;
 
   Parser(std::unique_ptr<Tokenizer>);
@@ -39,7 +45,9 @@ public:
   std::unique_ptr<Stmt> stmt();
   
   std::unique_ptr<Decl> decl();
-  std::unique_ptr<Expr> from_string(const char* str);
+
+  std::vector<unique_ptr<Decl>> AST();
+  void syntax_error(const char* fmt, ...);
 };
 
 Parser::Parser(std::unique_ptr<Tokenizer> tokenizer){
@@ -88,9 +96,10 @@ std::unique_ptr<Expr> Parser::operand_expr(){
     return Expr_list(move(el));
     
   }
-  printf("Error: expected an expression, got: %s.\n",	 
-  	 this->tokenizer->token.text);
+  this->syntax_error("expected an expression, got: %s.\n",	 
+		     this->tokenizer->token.text.c_str());
   exit(1);
+  
 }
 std::unique_ptr<Expr> Parser::base_expr(){
   // operand_expr ('(' expr_list ')' | '[' expr ']' | '.' base_expr)*
@@ -116,40 +125,49 @@ std::unique_ptr<Expr> Parser::base_expr(){
       // Check correct syntax
       // call ending with ')' token
       if(!this->tokenizer->expect(TK_CR_PAREN)){
-	printf("Error: expected ')', after an expression list, got '%s'.\n",
-	       this->tokenizer->token.text);
+	this->syntax_error("expected ')', after an expression list, got '%s'.\n",
+			   this->tokenizer->token.text.c_str());
 	exit(1);
+	
       }
       // Exrpression OK
-      lhs->rhs  = Expr_list(move(el));
+      lhs->base  = Expr_list(move(el));
+
+      if(this->tokenizer->expect(TK_DOT)){	
+	lhs->rhs = this->base_expr();
+	
+      }      
     }
     return lhs;
   }
   else if(this->tokenizer->expect(TK_OS_PAREN)){
-    printf("Error: can not parse arrays.\n");
-    exit(1);
+    lhs->rhs = this->base_expr();
+    if(!this->tokenizer->expect(TK_CS_PAREN)){
+      this->syntax_error("expected ']' after array access.\n");
+      exit(1);
+    }
+    return lhs;
+    
   }
   else if(this->tokenizer->expect(TK_DOT)){
-    printf("Error: field of name is not implemented yet.\n");
-    exit(1);
+    auto rhs = this->base_expr();
+    lhs->rhs = move(rhs);
+    return lhs;
+    
   }
 
   else if(this->tokenizer->expect(TK_DDOT)){
 
     if (lhs->kind != EXPR_NAME_LITERAL){
-      // Verify if the VAR NAME is OK
-      fprintf(stderr, "Error: var declaraton expects a NAME instead of an expression.\n");
-      fprintf(stderr, "Note: the ast note is: ");
-      
-      fprintf(stderr, "[");
-      Expr::print(stderr, move(lhs));
-      fprintf(stderr, "]\n");
+      // Verify if the VAR NAME is OK     
+      this->syntax_error("var declaraton expects a NAME instead of an expression.\n");
       exit(1);
+      
+      
     } // var name OK
     unique_ptr<pi_type> type;
     if(this->tokenizer->is_tk(TK_ASIGN)){
       type = make_unique<pi_type>(pi_type("auto", 8));
-      printf("auto.\n");
     }
     else {
       type = this->type();
@@ -160,7 +178,7 @@ std::unique_ptr<Expr> Parser::base_expr(){
       // NOTE: var declaration only accept '=' as token      
       rhs = this->expr();
     }
-    SKIP_OPTIONAL_EOL_TK
+
     return Expr_var(move(type),
 		    move(lhs),
 		    move(rhs));
@@ -230,12 +248,15 @@ std::unique_ptr<Expr> Parser::and_expr(){
 std::unique_ptr<Expr> Parser::ternary(){
   // or_expr ('if' ternary_expr else' ternary_expr)*
   auto and_expr = this->and_expr();
-  if(!strcmp(this->tokenizer->token.text, "test")){
+  if(this->tokenizer->token.text == "test"){
     this->tokenizer->next();
     // ternary struct
     auto if_expr = this->ternary();
     
-    assert(!strcmp(this->tokenizer->token.text, "else"));
+    if(this->tokenizer->token.text != "else"){
+      this->syntax_error("expected the keyword 'else' after test expression.\n");
+      exit(1);
+    }
     this->tokenizer->next();
     
     auto else_expr = this->ternary();
@@ -248,7 +269,7 @@ std::unique_ptr<Expr> Parser::ternary(){
 }
 std::unique_ptr<Expr> Parser::expr(){
   auto lhs = this->ternary();
-  if(!strcmp(this->tokenizer->token.text, "as")){
+  if(this->tokenizer->token.text == "as"){
     this->tokenizer->next();
     auto type  = this->type();
     auto* cast = new Cast(move(lhs), move(type));
@@ -260,7 +281,7 @@ std::unique_ptr<Expr> Parser::expr(){
 
 std::unique_ptr<Stmt>  Parser::PWhile(){
   // while expr stmt
-  assert(!strcmp(this->tokenizer->token.text, "while"));  
+  assert(this->tokenizer->token.text == "while");  
   this->tokenizer->next();
   
   auto expr      = this->expr();
@@ -269,7 +290,7 @@ std::unique_ptr<Stmt>  Parser::PWhile(){
 }
 
 std::unique_ptr<Stmt>  Parser::PIf(){
-  assert(!strcmp(this->tokenizer->token.text, "if"));
+  assert(this->tokenizer->token.text == "if");
   
   this->tokenizer->next();  
   auto expr      = this->expr();
@@ -297,7 +318,6 @@ std::unique_ptr<Stmt>  Parser::block(){
     }
     assert(this->tokenizer->is_tk(TK_CC_PAREN));
     this->tokenizer->next();
-    
     return Stmt_block(move(*block));
   }
   else {
@@ -312,56 +332,53 @@ std::unique_ptr<pi_type> Parser::type(){
   auto type = std::make_unique<pi_type>(pi_type());
 
   // check for pi_keywords
-  if(!strcmp(this->tokenizer->token.text, "const")){
+  if(this->tokenizer->token.text == "const"){
     this->tokenizer->next();
     type->set_cte(true);
   }
-  if(!strcmp(this->tokenizer->token.text, "static")){
+  if(this->tokenizer->token.text == "static"){
     this->tokenizer->next();
-    printf("Error: static variables are not defined yet.\n ");
+    this->syntax_error("static variables are not defined yet.\n ");
     exit(1);
+    
   }
 
 
   // check for pointers, name_literals, templates
   if(this->tokenizer->is_tk(TK_STAR)){
-    printf("Error: can not parse pointers yet.\n");
-    exit(1);
+    this->syntax_error("can not parse pointers yet.\n");
+    exit(1);    
   }
+  
   if(this->tokenizer->is_tk(TK_NAME)){
     // type_name
-    type->name() = string(this->tokenizer->token.text);
+    type->name() = this->tokenizer->token.text;
     this->tokenizer->next();
-
   }
 
   if(this->tokenizer->is_tk(TK_LESS)){
     // template<type>
-    printf("Error: can not parse templates yet.\n");
-    exit(1);
-    
+    this->syntax_error("can not parse templates yet.\n");
+    exit(1);       
   }
+  
   return type;
 }
 std::unique_ptr<Stmt> Parser::stmt(){
-
-  if(!strcmp(this->tokenizer->token.text, "if")){
+  if(this->tokenizer->token.text == "if"){
     return this->PIf();
   }
-  if(!strcmp(this->tokenizer->token.text, "while")){
+  
+  if(this->tokenizer->token.text == "while"){
     return this->PWhile();
   }
-  else {
-    // Expr
-    auto e = this->expr();
-    return Stmt_expr(move(e));
-  }
-
+   
+  auto e = this->expr();
+  return Stmt_expr(move(e)); 
 }
 
 std::unique_ptr<Decl> Parser::decl(){
-  if(!this->tokenizer->stream) return NULL;
-  const char* str = this->tokenizer->token.text;
+  string str = this->tokenizer->token.text;
   this->tokenizer->next();
   bool pre_processed_entity = false;
 
@@ -371,24 +388,25 @@ std::unique_ptr<Decl> Parser::decl(){
     pre_processed_entity = true;
     auto proc = make_unique<pi_proc>(pi_proc());
     
-    proc->name() = string(str);
+    proc->name() = str;
     /*
       Syntax:
         NAME :: (inline)* (extern)* '(' ARGS ')' STMT
     */
-    if(!strcmp(this->tokenizer->token.text, "inline")){
+    if(this->tokenizer->token.text == "inline"){
       this->tokenizer->next();
       proc->inlined() = true;
     }
-    if(!strcmp(this->tokenizer->token.text, "extern")){
+    if(this->tokenizer->token.text == "extern"){
       this->tokenizer->next();
       proc->externed() = true;
     }
     
     if(this->tokenizer->expect(TK_OR_PAREN)){
       if(!this->tokenizer->expect(TK_CR_PAREN)){
-	printf("Error: can not parse procedure arguments yet.\n");
+        this->syntax_error("can not parse procedure arguments yet.\n");
 	exit(1);
+	
       }
 
       std::unique_ptr<pi_type> ty;
@@ -404,26 +422,38 @@ std::unique_ptr<Decl> Parser::decl(){
     }
     else {
       // TODO: syntax for aggregates decl (enum, union, struct, ...)
-      printf("Error: unexpected pre-processed expression at '%s' definition.\n",
-	     str);
+      this->syntax_error("unexpected pre-processed expression at '%s' definition.\n",
+			 str.c_str());
       exit(1);
+      
     }
-    exit(1);
-  }
-  else {
-    printf("Error: unexpected name at global declaration: '%s'\n",
-	   str);
-    exit(1);
-  }
-}
-std::unique_ptr<Expr> Parser::from_string(const char* str){
-  this->tokenizer.reset();
-  this->tokenizer = make_unique<Tokenizer>(Tokenizer(str));
-  return
-    !this->tokenizer->is_tk(TK_EOF) and
-    *this->tokenizer->stream != '\0'
-    ? this->expr()
-    : nullptr;
     
+  }
+
+  this->syntax_error("unexpected name at global declaration: '%s'\n",
+		     str.c_str());
+  exit(1);
+    
+  
+}
+std::vector<unique_ptr<Decl>> Parser::AST(){
+  auto ast = vector<unique_ptr<Decl>>();
+  do {
+    unique_ptr<Decl> decl_node = this->decl();
+    ast.push_back(move(decl_node));
+  } while(this->tokenizer->next()->kind != TK_EOF);
+  
+  return ast;
+}
+void Parser::syntax_error(const char* fmt, ...){
+  va_list args;
+  va_start(args, fmt);
+  fprintf(stderr, FMT_CPos ": Syntax Error: ",
+	  ARG_CPos(this->tokenizer->token.pos));
+  fprintf(stderr, fmt, args);
+  va_end(args);
+  
+
+  exit(1);
 }
 #endif /*__PARSER_CPP__*/

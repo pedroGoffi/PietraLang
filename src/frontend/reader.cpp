@@ -10,18 +10,19 @@ public:
   Reader(const char* fp){
     this->file_path = fp;
     this->reach_file();
+    this->load_file();
   }
   void reach_file();
   const char* load_file();
 };
 void Reader::reach_file(){
   this->fd = std::fopen(this->file_path, "r");
-}
-const char* Reader::load_file(){
   if(!this->fd){
     printf("Error: this->fd is a nullptr.\n");
     exit(1);
   }
+}
+const char* Reader::load_file(){
   std::fseek(this->fd, 0, SEEK_END);
   auto fsize = std::ftell(this->fd);
   std::fseek(this->fd, 0, SEEK_SET);

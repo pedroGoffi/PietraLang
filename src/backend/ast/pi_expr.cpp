@@ -63,10 +63,10 @@ public:
       fprintf(stream, "%d", node->INT);
       break;
     case EXPR_NAME_LITERAL:
-      fprintf(stream, "%s", node->token.text);
+      fprintf(stream, "%s", node->token.text.c_str());
       break;
     case EXPR_BINARY:
-      fprintf(stream, "(%s ", node->token.text);
+      fprintf(stream, "(%s ", node->token.text.c_str());
       Expr::print(stream, move(node->lhs));
       fprintf(stream, " ");
       Expr::print(stream, move(node->rhs));
@@ -74,14 +74,14 @@ public:
       break;
     case EXPR_CMP:
     case EXPR_AND:
-      fprintf(stream, "(%s ", node->token.text);
+      fprintf(stream, "(%s ", node->token.text.c_str());
       Expr::print(stream, move(node->lhs));
       fprintf(stream, " ");
       Expr::print(stream, move(node->rhs));
       fprintf(stream, ")");
       break;
     case EXPR_UNARY: {
-      fprintf(stream, "(%s ", node->token.text);
+      fprintf(stream, "(%s ", node->token.text.c_str());
       Expr::print(stream, move(node->rhs));
       fprintf(stream, " )");
     } break;
@@ -114,20 +114,19 @@ public:
     	fprintf(stream, i + 1 < len? ", ": "");
       }
       fprintf(stream, " }");
-     
+
     }  break;
     case EXPR_CALL: {
-      fprintf(stream, "(CALL %s(", move(node->token.text));
-
-      if(node->rhs){
-        Expr::print(stream, move(node->rhs));
+      fprintf(stream, "(CALL %s(", move(node->token.text.c_str()));      
+      if(node->base){
+        Expr::print(stream, move(node->base));
       }
       fprintf(stream, "))");
       
     } break;
     case EXPR_VAR: {
       assert(node->base->kind == EXPR_NAME_LITERAL);
-      fprintf(stream, "(VAR %s", move(node->base->token.text));
+      fprintf(stream, "(VAR %s", move(node->base->token.text.c_str()));
 
       if(node->type){
 	fprintf(stream, " : ");
@@ -142,24 +141,29 @@ public:
     } break;
     default:
       printf("Error: undefined node->kind: %s.\n",
-	     node->token.text);
+	     node->token.text.c_str());
       exit(1);
     }
+    if(node->rhs){
+      fprintf(stream, " -> ");
+      Expr::print(stream, move(node->rhs));
+    }
   }
+
 };
 
 unique_ptr<Expr> Expr_int(int val){
-  unique_ptr<Expr> ret = make_unique<Expr>(Expr());
-  ret->kind = EXPR_INT;
-  ret->INT  = val;
+  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
+  ret->kind		= EXPR_INT;
+  ret->INT		= val;
   return ret;
 }
 unique_ptr<Expr> Expr_unary(Token            token,
 			    unique_ptr<Expr> rhs){
-  unique_ptr<Expr> ret = make_unique<Expr>(Expr());
-  ret->kind  = EXPR_UNARY;
-  ret->token = token;
-  ret->rhs   = move(rhs);
+  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
+  ret->kind		= EXPR_UNARY;
+  ret->token		= token;
+  ret->rhs		= move(rhs);
   return ret;
 }
 unique_ptr<Expr> Expr_binary_op(
@@ -179,7 +183,6 @@ unique_ptr<Expr> Expr_ternary(unique_ptr<Expr> base,
   
   unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
   ret->kind		= EXPR_TERNARY;
-
   ret->base             = move(base);
   ret->lhs		= move(lhs);
   ret->rhs		= move(rhs);
@@ -188,7 +191,6 @@ unique_ptr<Expr> Expr_ternary(unique_ptr<Expr> base,
 unique_ptr<Expr> Expr_cast(Cast* cast){
   unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
   ret->kind		= EXPR_CAST;
-
   ret->cast             = cast;
   return ret;    
 }
@@ -201,16 +203,14 @@ unique_ptr<Expr> Expr_var(
   ret->type             = move(type);
   ret->base		= move(base);
   ret->rhs		= move(rhs);
-
   return ret;    
 }
 unique_ptr<Expr> Expr_list(vector<unique_ptr<Expr>> expr_list){
                          
   unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
   ret->kind		= EXPR_LIST;
-  ret->expr_list = new vector<unique_ptr<Expr>>;
-  *ret->expr_list = vector_copy<unique_ptr<Expr>>(move(expr_list));
-
+  ret->expr_list	= new vector<unique_ptr<Expr>>;
+  *ret->expr_list	= vector_copy<unique_ptr<Expr>>(move(expr_list));
   return ret;    
 }
 #endif /*__EXPR_CPP__*/
