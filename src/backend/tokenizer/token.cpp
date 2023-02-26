@@ -4,7 +4,7 @@
 
 #include <cassert>
 #include <string.h>
-
+#include <iostream>
 
 enum TokenKind {
   TK_HASHTAG,		// #
@@ -29,6 +29,7 @@ enum TokenKind {
   TK_GT,		// >
   TK_GEQ,		// >=
   TK_TAKEAWAY,		// -
+  TK_ARROW,             // ->
   TK_DTAKEAWAY,		// --
   TK_MINUS_ASIGN,	// -=
   TK_PLUS,		// +
@@ -45,12 +46,19 @@ enum TokenKind {
   TK_EOF,		// '\0'
 };
 
-//class TokenPos{FILENAME, LINE, COLUMN}
+//class TokenPos{
+//public:
+//  FILE*  fd;
+//  std::string fname;
+//  size_t line;
+//  size_t col;
+//};
+
+ 
 class Token{
 public:
   TokenKind   kind;
-  const char* text;
-  // TokenPos pos;
+  const char* text; 
   union {
     int   INT;
     float FLOAT;

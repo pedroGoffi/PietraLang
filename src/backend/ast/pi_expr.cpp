@@ -4,12 +4,14 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include <vector>
 #include "../tokenizer/token.cpp"
-#include "../allocator.cpp"
 #include "./pi_types.cpp"
+#include "../allocator.cpp"
 
 typedef class Cast Cast;
 typedef class Expr Expr;
+
 class Cast{
 public:
   std::unique_ptr<Expr>    expr;
@@ -21,17 +23,22 @@ public:
       type(move(type_))
   {}
 };
+
+
 enum ExprKind {
-  EXPR_INT,
-  EXPR_NAME_LITERAL,  
-  EXPR_BINARY,
-  EXPR_CMP,
-  EXPR_AND,
-  EXPR_UNARY,
-  EXPR_TERNARY,
-  EXPR_CAST,
-  EXPR_LIST // '{' expr1 ',' expr2 ',' expr3 '}'
+  EXPR_INT,		// INT
+  EXPR_NAME_LITERAL,	// NAME
+  EXPR_BINARY,		// expr OP expr
+  EXPR_CMP,		// expr OP expr
+  EXPR_AND,		// expr OP expr
+  EXPR_UNARY,		// OP expr
+  EXPR_TERNARY,		// expr if expr else expr
+  EXPR_CAST,		// expr as type
+  EXPR_LIST,		// '{' expr1 ',' expr2 ',' expr3 '}'
+  EXPR_CALL,		// [NAME]'(' ARGS* ')'
+  EXPR_VAR              // NAME ':' type ('=' expr)*
 };
+
 class Expr{
 public:
   ExprKind kind;
@@ -41,24 +48,11 @@ public:
   std::unique_ptr<Expr>    rhs;
   std::unique_ptr<pi_type> type;
   union{
-    int   INT;
-    Cast* cast;
-    //unique_ptr<Allocator<std::unique_ptr<Expr>>> expr_list;
+    int                       INT;
+    Cast*                     cast;
+    vector<unique_ptr<Expr>>* expr_list;
   };
 public:  
-
-  //Expr(Allocator<std::unique_ptr<Expr>>* el) : expr_list(el){}
-  //Expr(int val){
-  //  this->kind = ExprKind::EXPR_INT;
-  //  this->INT  = val;
-  //}
-  //Expr(std::unique_ptr<Expr> lhs, std::unique_ptr<Expr> rhs){
-  //  assert(lhs);
-  //  assert(rhs);
-  //  this->lhs = lhs;
-  //  this->rhs = rhs;
-  //  this->kind = EXPR_BINARY;
-  //}
   static void print(FILE* stream, std::unique_ptr<Expr> node){
     static int ident = 0;
     for(int i=0 ; i < ident; ++i)
@@ -98,31 +92,57 @@ public:
       fprintf(stream, " )");
       
     } break;
-    //case EXPR_TERNARY: {      
-    //  Ternary ternary = move(node->ternary);
-    //  fprintf(stream, "(");
-    //  Expr::print(stream, move(ternary.or_expr));
-    //  fprintf(stream, " if ");
-    //  Expr::print(stream, move(ternary.if_expr));
-    //  fprintf(stream, " else ");
-    //  Expr::print(stream, move(ternary.else_expr));
-    //  fprintf(stream, ")");
-    //} break;
+    case EXPR_TERNARY: {      
+   
+      fprintf(stream, "(");
+      Expr::print(stream, move(node->base));
+      fprintf(stream, " if ");
+      Expr::print(stream, move(node->lhs));
+      fprintf(stream, " else ");
+      Expr::print(stream, move(node->rhs));
+      fprintf(stream, ")");
+    } break;
       
-    //case EXPR_LIST: {
-    //  assert(node->expr_list);
-    //  int len = (int)node->expr_list->vec.size();
-    //  fprintf(stream, "{");
-    //  for(int i=0; i < len; ++i){
-    //	std::unique_ptr<Expr> e = move(node->expr_list->vec[i]);
-    //	Expr::print(stream, move(e));
-    //	fprintf(stream, i + 1 < len? ", ": "");
-    //  }
-    //  fprintf(stream, "}");
-    // 
-    //}  break;
+    case EXPR_LIST: {
+      assert(node->expr_list);
+      int len = (int)node->expr_list->size();
+
+      fprintf(stream, "{ ");
+      for(int i=0; i < len; ++i){
+	unique_ptr<Expr> e = move((*node->expr_list)[i]);
+	Expr::print(stream, move(e));
+    	fprintf(stream, i + 1 < len? ", ": "");
+      }
+      fprintf(stream, " }");
+     
+    }  break;
+    case EXPR_CALL: {
+      fprintf(stream, "(CALL %s(", move(node->token.text));
+
+      if(node->rhs){
+        Expr::print(stream, move(node->rhs));
+      }
+      fprintf(stream, "))");
+      
+    } break;
+    case EXPR_VAR: {
+      assert(node->base->kind == EXPR_NAME_LITERAL);
+      fprintf(stream, "(VAR %s", move(node->base->token.text));
+
+      if(node->type){
+	fprintf(stream, " : ");
+	pi_type::print(stream, move(node->type));
+
+      }
+      if(node->rhs) {
+	fprintf(stream, " = ");
+	Expr::print(stream, move(node->rhs));
+      }
+      fprintf(stream, " )");           
+    } break;
     default:
-      printf("Error: undefined this->kind.\n");
+      printf("Error: undefined node->kind: %s.\n",
+	     node->token.text);
       exit(1);
     }
   }
@@ -170,6 +190,27 @@ unique_ptr<Expr> Expr_cast(Cast* cast){
   ret->kind		= EXPR_CAST;
 
   ret->cast             = cast;
+  return ret;    
+}
+unique_ptr<Expr> Expr_var(
+			  unique_ptr<pi_type> type,
+			  unique_ptr<Expr>    base,
+			  unique_ptr<Expr>    rhs){
+  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
+  ret->kind		= EXPR_VAR;
+  ret->type             = move(type);
+  ret->base		= move(base);
+  ret->rhs		= move(rhs);
+
+  return ret;    
+}
+unique_ptr<Expr> Expr_list(vector<unique_ptr<Expr>> expr_list){
+                         
+  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
+  ret->kind		= EXPR_LIST;
+  ret->expr_list = new vector<unique_ptr<Expr>>;
+  *ret->expr_list = vector_copy<unique_ptr<Expr>>(move(expr_list));
+
   return ret;    
 }
 #endif /*__EXPR_CPP__*/

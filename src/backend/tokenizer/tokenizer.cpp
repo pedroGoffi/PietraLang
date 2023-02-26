@@ -74,18 +74,19 @@ namespace Scanner{
     }
     return acc;
   }
-  Allocator<string> intern_strings;
+  vector<string> intern_strings;
   const char* str_ptr_range(const char* bgin, const char* end){
     size_t len = end - bgin;
-    for(auto& str : intern_strings.vec){
+    for(int i=0; i < (int)intern_strings.size(); ++i){
+      auto str = intern_strings[i];
       if(str.size() == len and strncmp(str.c_str(), bgin, len) == 0){
-	return str.c_str();
+	return intern_strings[i].c_str();
       }
     }
     char *str = (char*)std::malloc(len + 1);
     memcpy(str, bgin, len);
-    str[len] = 0;
-    intern_strings.vec.push_back(string(str));
+    str[len] = 0;    
+    intern_strings.push_back(string(str));
     return (const char*)str;
   }
 }
@@ -115,8 +116,11 @@ Tokenizer::Tokenizer(const char* stream){
 Token* Tokenizer::next(){
   const char* strBegin = this->stream;
   // LITERALS
+  // TODO: TokenPos
+
   while(isspace(*this->stream)){
-    strBegin = ++this->stream;    
+    strBegin = ++this->stream;
+
   }
   if(TokenizerRules::is_name(this->stream)){
     while(std::isalnum(*this->stream) or *this->stream == '_'){
@@ -125,6 +129,7 @@ Token* Tokenizer::next(){
     this->token.kind = TokenKind::TK_NAME;
     this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
     this->token.kind = TokenKind::TK_NAME;
+
     return &this->token;
   }
   // DIGITS
@@ -143,7 +148,8 @@ Token* Tokenizer::next(){
       this->token.kind		= TokenKind::TK_INT_LITERAL;
       // TOOD :this->token	= Scanner::scan_int(this);
     }
-    assert(*this->stream != '.');    
+    assert(*this->stream != '.');
+
     return &this->token;
   }
   // STRINGS
@@ -156,6 +162,7 @@ Token* Tokenizer::next(){
     assert(*this->stream == '"');
     this->token.kind = TokenKind::TK_STRING_LITERAL;
     this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
+
     return &this->token;
   }
   // KEYWORDS
@@ -164,12 +171,31 @@ Token* Tokenizer::next(){
   else if(Token* tk = this->is_duo_keyword())		return tk;
   else if(Token* tk = this->is_complex_keyword())	return tk;
   
+  // Custom poctuations
+  else if(*this->stream == '-'){
+    this->token.kind = TK_TAKEAWAY;
+    this->stream++;
   
-  else {
-    if(*this->stream != '\0'){
-      printf("Error: inesperada stream. [%s]\n", this->stream);
-      exit(1);
+    if(*this->stream == '-'){
+      this->token.kind = TK_DTAKEAWAY;
+      this->stream++;      
     }
+    else if(*this->stream == '>'){  
+      this->token.kind = TK_ARROW;
+      this->stream++;
+    }
+    else if(*this->stream == '='){
+      this->token.kind = TK_MINUS_ASIGN;
+      this->stream++;
+    }
+    this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
+    return &this->token;
+    
+  }
+  //{'-', TK_TAKEAWAY, '-', TK_DTAKEAWAY, '=', TK_MINUS_ASIGN}
+  
+  
+  else {   
     return NULL;
   }
 }
@@ -189,7 +215,7 @@ Token* Tokenizer::is_simple_keyword(){
     {'(', TokenKind::TK_OR_PAREN},
     {')', TokenKind::TK_CR_PAREN},
     {'{', TokenKind::TK_OC_PAREN},
-    {'}', TokenKind::TK_CC_PAREN},
+    {'}', TokenKind::TK_CC_PAREN},    
     {'\0',TokenKind::TK_EOF}
   };
   const char* begin = this->stream;
@@ -246,7 +272,6 @@ Token* Tokenizer::is_complex_keyword(){
   vector<__complex_kws__> complex_kws = {
     {'<', TK_LESS, '<', TK_SHL, '=', TK_LEQ},
     {'>', TK_GT,   '>', TK_SHR, '=', TK_GEQ},
-    {'-', TK_TAKEAWAY, '-', TK_DTAKEAWAY, '=', TK_MINUS_ASIGN},
     {'+', TK_PLUS,      '+', TK_DPLUS, '=', TK_PLUS_ASIGN}
   };
   const char* begin = this->stream;

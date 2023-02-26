@@ -1,5 +1,12 @@
-1 + 1 as FLOAT
-*1 == !1
-
-
-
+fib:: () -> {
+  arg: int = TODO_PROC_ARGS;
+  return Arg test arg < 1 else arg * fib()
+}
+main:: () -> int {
+  var: int = random_func(1 + 1, {0, 0});
+  if var != nullptr {
+    write(HELLO_WORLD)
+    var := var test !var else 0
+  }
+  while fib() write(OK)
+}

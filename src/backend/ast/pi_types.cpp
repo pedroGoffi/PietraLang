@@ -38,8 +38,13 @@ public:
     ret += this->name_;
     return ret;
   }
+  static void print(FILE* stream, unique_ptr<pi_type> type);
   
 };
-//auto ty_i64 = make_unique<pi_type>(pi_type("i64", sizeof(long int)));
 
+void pi_type::print(FILE* stream, unique_ptr<pi_type> type){
+  fprintf(stream, "%s %s",
+	  type->cte()? "const ": "",
+	  type->name().c_str());
+}
 #endif /*__PI_TYPES_CPP__*/
