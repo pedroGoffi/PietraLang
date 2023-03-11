@@ -9,16 +9,20 @@ class pi_type{
   string   name_;
   size_t   size_;
   bool     const_;
-
+  bool     undefined_;
   // TODO: pi_type_template
 
 
 public:
-  pi_type() : const_(false){}
+  pi_type()
+    : const_(false),
+      undefined_(true)
+  {}
   pi_type(string name, size_t size)
     : name_(name),
       size_(size),
-      const_(false)
+      const_(false),
+      undefined_(false)
   {}
 
   size_t& size() {
@@ -30,9 +34,13 @@ public:
   bool& cte(){    
     return this->const_;
   }
+  bool& undefined() {
+    return this->undefined_;
+  }
   void set_cte(bool state){
     this->const_ = state;
   }
+  
   string human_name(){    
     string ret = this->const_? "const ": "";
     ret += this->name_;

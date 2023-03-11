@@ -55,8 +55,8 @@ namespace Scanner{
       }   
     }  
     int acc = 0;
-    for(;;){
-      int digit = Scanner::chr_to_int(*stream);
+    for(;;){      
+      int digit = Scanner::chr_to_int(*stream);      
       if(digit == 0 && *stream != '0'){
 	break;
       }
@@ -69,6 +69,7 @@ namespace Scanner{
 	printf("Sytnax ERROR: Integer literal overflow\n");
 	exit(1);
       }
+      
       acc = acc*number_base + digit;
       stream++;
     }

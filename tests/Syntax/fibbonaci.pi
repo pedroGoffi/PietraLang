@@ -1,11 +1,13 @@
 let f0: i64;
 let f1: i64;
 let f2: i64;
-
+const LIM: i64;
 
 main:: () -> int {
   f1 = 1
-  while 1{
+  LIM = 10000
+  
+  while(f0 < LIM){
     f0 = f1 + f2
     f1 = f2
     f2  = f0  

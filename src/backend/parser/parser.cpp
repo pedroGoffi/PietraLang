@@ -6,10 +6,8 @@
 #include "../../frontend/reader.cpp"
 #include "../tokenizer/tokenizer.cpp"
 
-#include "../ast/pi_decl.cpp"
-#include "../ast/pi_stmt.cpp"
-#include "../ast/pi_expr.cpp"
-#include "../ast/pi_types.cpp"
+#include "../ast/pi_ast.cpp"
+
 
 
 using namespace std;
@@ -47,7 +45,7 @@ public:
   std::unique_ptr<Decl> decl();
 
   std::vector<unique_ptr<Decl>> AST();
-  void syntax_error(const char* fmt, ...);
+  void syntax_error(const char* fmt, ...);  
 };
 
 Parser::Parser(std::unique_ptr<Tokenizer> tokenizer){
@@ -70,11 +68,59 @@ std::unique_ptr<Expr> Parser::operand_expr(){
   else if(this->tokenizer->is_tk(TK_NAME)){
     Token tk = this->tokenizer->token;
     this->tokenizer->next();
+    if(tk.text == "let" or tk.text == "const"){
+      // let NAME (':' TYPE)* ('=' EXPR)*
+      // var declaration
+      bool var_mutable = false;
+      bool cte = tk.text == "const";
+      
+      if(this->tokenizer->token.text == "mut"){
+	var_mutable = true;
+	this->tokenizer->next();
+      }
+      
+      if(this->tokenizer->token.kind != TK_NAME){
+	this->syntax_error("Expected NAME LITERAL in variable definition, got: %s.\n",
+			   this->tokenizer->token.text.c_str());
+	exit(1);
+      }
+      Token var_name_def_tk		= this->tokenizer->token;
+      this->tokenizer->next();
+      
 
-    auto expr = make_unique<Expr>(Expr());
-    expr->kind = EXPR_NAME_LITERAL;
-    expr->token = tk;
-    return expr;
+      auto   var_type		= make_unique<pi_type>(pi_type());
+      if(this->tokenizer->expect(TK_DDOT)){
+	var_type = this->type();
+	var_type->undefined() = false;
+      }
+
+      auto   var_expr		= make_unique<Expr>();
+      if(this->tokenizer->expect(TK_ASIGN)){
+	var_expr = this->expr();
+      }
+      // Filter bad syntax
+      if(cte and var_mutable ){
+	this->syntax_error("Can not use CONST with MUT in variable: %s.\n",
+			   var_name_def_tk.text.c_str());
+	exit(1);
+      }
+      if(cte and var_type->undefined()){
+	this->syntax_error("Expected typed variable while using const in variable: %s.\n",
+			   var_name_def_tk.text.c_str());
+	exit(1);	
+      }
+      return Expr_var(var_name_def_tk,
+		      var_mutable,
+		      move(var_type),
+		      move(var_expr));
+    }
+    else {
+      // EXPR_NAME
+      auto expr = make_unique<Expr>(Expr());
+      expr->kind = EXPR_NAME_LITERAL;
+      expr->token = tk;
+      return expr;
+    }
   }
   else if(this->tokenizer->expect(TK_OR_PAREN)){
     // '(' expr ')'
@@ -149,40 +195,20 @@ std::unique_ptr<Expr> Parser::base_expr(){
     return lhs;
     
   }
+  else if(this->tokenizer->expect(TK_ASIGN)){
+    // TODO: differend types of ASSING -= ^= *= /= ...
+    printf("ASSIGN\n");
+    auto rhs = this->expr();
+    printf("ok\n");
+    return Expr_assign(move(lhs),
+		       move(rhs));
+  }
   else if(this->tokenizer->expect(TK_DOT)){
     auto rhs = this->base_expr();
     lhs->rhs = move(rhs);
-    return lhs;
-    
+    return lhs;    
   }
 
-  else if(this->tokenizer->expect(TK_DDOT)){
-
-    if (lhs->kind != EXPR_NAME_LITERAL){
-      // Verify if the VAR NAME is OK     
-      this->syntax_error("var declaraton expects a NAME instead of an expression.\n");
-      exit(1);
-      
-      
-    } // var name OK
-    unique_ptr<pi_type> type;
-    if(this->tokenizer->is_tk(TK_ASIGN)){
-      type = make_unique<pi_type>(pi_type("auto", 8));
-    }
-    else {
-      type = this->type();
-    }
-
-    unique_ptr<Expr> rhs;
-    if(this->tokenizer->expect(TK_ASIGN)){
-      // NOTE: var declaration only accept '=' as token      
-      rhs = this->expr();
-    }
-
-    return Expr_var(move(type),
-		    move(lhs),
-		    move(rhs));
-  }
   return lhs;
 }
 std::unique_ptr<Expr> Parser::unary_expr(){
@@ -314,7 +340,6 @@ std::unique_ptr<Stmt>  Parser::block(){
     while(!this->tokenizer->is_tk(TK_CC_PAREN)){
       unique_ptr<Stmt> stmt_node = this->stmt();
       block->push_back(move(stmt_node));
-      SKIP_OPTIONAL_EOL_TK;
     }
     assert(this->tokenizer->is_tk(TK_CC_PAREN));
     this->tokenizer->next();
@@ -330,19 +355,6 @@ std::unique_ptr<Stmt>  Parser::block(){
 std::unique_ptr<pi_type> Parser::type(){
   // type<type> | type 
   auto type = std::make_unique<pi_type>(pi_type());
-
-  // check for pi_keywords
-  if(this->tokenizer->token.text == "const"){
-    this->tokenizer->next();
-    type->set_cte(true);
-  }
-  if(this->tokenizer->token.text == "static"){
-    this->tokenizer->next();
-    this->syntax_error("static variables are not defined yet.\n ");
-    exit(1);
-    
-  }
-
 
   // check for pointers, name_literals, templates
   if(this->tokenizer->is_tk(TK_STAR)){
@@ -383,8 +395,55 @@ std::unique_ptr<Decl> Parser::decl(){
   bool pre_processed_entity = false;
 
 
-  
-  if(this->tokenizer->expect(TK_DDDOT)){    
+  if (str == "let" or str == "const"){
+    printf("OK GLOBAL VAR.\n");
+    bool var_mutable = false;
+    bool cte = str == "const";
+      
+    if(this->tokenizer->token.text == "mut"){
+      var_mutable = true;
+      this->tokenizer->next();
+    }
+
+    if(this->tokenizer->token.kind != TK_NAME){
+      this->syntax_error("Expected NAME LITERAL in variable definition, got: %s.\n",
+			 this->tokenizer->token.text.c_str());
+      exit(1);
+    }
+    Token var_name_def_tk		= this->tokenizer->token;
+    this->tokenizer->next();
+      
+
+    auto   var_type		= make_unique<pi_type>(pi_type());
+    if(this->tokenizer->expect(TK_DDOT)){
+      var_type = this->type();
+      var_type->undefined() = false;
+    }
+
+    auto   var_expr		= Expr_int(0);
+    if(this->tokenizer->expect(TK_ASIGN)){
+      var_expr = this->expr();
+    }
+    // Filter bad syntax
+    if(cte and var_mutable ){
+      this->syntax_error("Can not use CONST with MUT in variable: %s.\n",
+			 var_name_def_tk.text.c_str());
+      exit(1);
+    }
+    if(cte and var_type->undefined()){
+      this->syntax_error("Expected typed variable while using const in variable: %s.\n",
+			 var_name_def_tk.text.c_str());
+      exit(1);	
+    }
+    auto var = pi_variable(var_name_def_tk.text,
+			   move(var_type),
+			   move(var_expr),
+			   var_mutable);
+
+    return Decl_var(make_unique<pi_variable>(move(var)));
+      
+  }
+  else if(this->tokenizer->expect(TK_DDDOT)){    
     pre_processed_entity = true;
     auto proc = make_unique<pi_proc>(pi_proc());
     

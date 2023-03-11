@@ -1,8 +1,8 @@
 #ifndef  __MODULE_CPP__
 #define  __MODULE_CPP__
 
-#include <vector>
 #include "../parser/parser.cpp"
+#include <vector>
 #include "../tokenizer/tokenizer.cpp"
 #include "./pi_decl.cpp"
 #include "./pi_stmt.cpp"
@@ -11,21 +11,12 @@
 
 using namespace std;
 class Module{
-  Parser* parser_;
 public:
-  vector<unique_ptr<Decl>> AST;
-
-  Module(Tokenizer);
-  void parse_file();
+  vector<unique_ptr<class Decl>> AST;
+public:
   void dump_ast(const char*);
 };
-Module::Module(Tokenizer tk){
-  this->parser_ = new Parser(make_unique<Tokenizer>(tk));
-}
-void Module::parse_file(){
-  this->AST = this->parser_->AST();
 
-}
 void Module::dump_ast(const char* fp){
   auto fd = fopen(fp, "w");
   assert(fd);

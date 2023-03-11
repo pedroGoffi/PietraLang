@@ -90,42 +90,4 @@ void Stmt::print(FILE* stream, std::unique_ptr<Stmt> node){
     exit(1);
   }
 }
-//unique_ptr<Stmt>
-unique_ptr<Stmt> Stmt_expr(unique_ptr<Expr> e){
-  auto st	= make_unique<Stmt>(Stmt());
-  st->kind	= ST_EXPR;
-  st->expr	= new unique_ptr<Expr>; 
-  *st->expr	= move(e);
-  return st;
-}
-unique_ptr<Stmt> Stmt_block(vector<unique_ptr<Stmt>> block){
-  auto st	= make_unique<Stmt>(Stmt());
-  st->kind	= ST_BLOCK;  
-  st->block	= new vector<unique_ptr<Stmt>>;  
-  *st->block	= vector_copy<unique_ptr<Stmt>>(move(block));
-
-  return st;
-}
-unique_ptr<Stmt> Stmt_while(unique_ptr<Expr> expr,
-			    unique_ptr<Stmt> block){
-  
-  auto st		= make_unique<Stmt>(Stmt());
-  st->kind		= ST_WHILE;
-  st->whileLoop		= new unique_ptr<While>;
-  *st->whileLoop	= make_unique<While>(While(move(expr), move(block)));
-  
-  return st;
-  
-}
-unique_ptr<Stmt> Stmt_if(unique_ptr<Expr> expr,
-			    unique_ptr<Stmt> block){
-  
-  auto st	= make_unique<Stmt>(Stmt());
-  st->kind	= ST_IF;
-  st->ifBlock	= new unique_ptr<If>;
-  *st->ifBlock	= make_unique<If>(If(move(expr), move(block)));
-   
-  return st;
-  
-}
 #endif /*__STMT_CPP__*/

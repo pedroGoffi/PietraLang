@@ -1,0 +1,4 @@
+By default variables ar IMMUTABLE
+   By C equivalent that would mean the variable is a const
+
+let x = 0;

@@ -6,11 +6,15 @@
 #include <memory>
 #include <vector>
 #include "../tokenizer/token.cpp"
-#include "./pi_types.cpp"
 #include "../allocator.cpp"
+#include "./pi_types.cpp"
+
+
+
 
 typedef class Cast Cast;
 typedef class Expr Expr;
+
 
 class Cast{
 public:
@@ -36,13 +40,15 @@ enum ExprKind {
   EXPR_CAST,		// expr as type
   EXPR_LIST,		// '{' expr1 ',' expr2 ',' expr3 '}'
   EXPR_CALL,		// [NAME]'(' ARGS* ')'
-  EXPR_VAR              // NAME ':' type ('=' expr)*
+  EXPR_VAR,              // NAME ':' type ('=' expr)*
+  EXPR_ASSIGN
 };
 
 class Expr{
 public:
   ExprKind kind;
   Token    token;
+  bool     mut;
   std::unique_ptr<Expr>    base;
   std::unique_ptr<Expr>    lhs;
   std::unique_ptr<Expr>    rhs;
@@ -139,6 +145,9 @@ public:
       }
       fprintf(stream, " )");           
     } break;
+    case EXPR_ASSIGN:
+      printf("[Assign]\n");
+      break;
     default:
       printf("Error: undefined node->kind: %s.\n",
 	     node->token.text.c_str());
@@ -151,66 +160,4 @@ public:
   }
 
 };
-
-unique_ptr<Expr> Expr_int(int val){
-  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
-  ret->kind		= EXPR_INT;
-  ret->INT		= val;
-  return ret;
-}
-unique_ptr<Expr> Expr_unary(Token            token,
-			    unique_ptr<Expr> rhs){
-  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
-  ret->kind		= EXPR_UNARY;
-  ret->token		= token;
-  ret->rhs		= move(rhs);
-  return ret;
-}
-unique_ptr<Expr> Expr_binary_op(
-				Token            token,
-				unique_ptr<Expr> lhs,
-				unique_ptr<Expr> rhs){
-  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
-  ret->kind		= EXPR_BINARY;;
-  ret->token		= token;
-  ret->lhs		= move(lhs);
-  ret->rhs		= move(rhs);
-  return ret;  
-}
-unique_ptr<Expr> Expr_ternary(unique_ptr<Expr> base,
-			      unique_ptr<Expr> lhs,
-			      unique_ptr<Expr> rhs){
-  
-  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
-  ret->kind		= EXPR_TERNARY;
-  ret->base             = move(base);
-  ret->lhs		= move(lhs);
-  ret->rhs		= move(rhs);
-  return ret;  
-}
-unique_ptr<Expr> Expr_cast(Cast* cast){
-  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
-  ret->kind		= EXPR_CAST;
-  ret->cast             = cast;
-  return ret;    
-}
-unique_ptr<Expr> Expr_var(
-			  unique_ptr<pi_type> type,
-			  unique_ptr<Expr>    base,
-			  unique_ptr<Expr>    rhs){
-  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
-  ret->kind		= EXPR_VAR;
-  ret->type             = move(type);
-  ret->base		= move(base);
-  ret->rhs		= move(rhs);
-  return ret;    
-}
-unique_ptr<Expr> Expr_list(vector<unique_ptr<Expr>> expr_list){
-                         
-  unique_ptr<Expr> ret	= make_unique<Expr>(Expr());
-  ret->kind		= EXPR_LIST;
-  ret->expr_list	= new vector<unique_ptr<Expr>>;
-  *ret->expr_list	= vector_copy<unique_ptr<Expr>>(move(expr_list));
-  return ret;    
-}
 #endif /*__EXPR_CPP__*/

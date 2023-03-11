@@ -1,0 +1,13 @@
+let a: i64;
+let b: i64;
+let c: i64;
+
+main:: () -> int {
+  a = &b
+  b = &c
+  c = 100
+  
+  dump(a)
+  dump(*a)
+  dump(**a)  
+}
