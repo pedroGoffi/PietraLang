@@ -1,7 +1,7 @@
 #ifndef  __RUNNER__
 #define  __RUNNER__
 #include "./PVM.hpp"
-
+#include <unistd.h>
 // Initialize the variable only
 // Assignment will be done at VINST lvl
 
@@ -80,6 +80,27 @@ Err VM::next_inst(){
       .i64 = (int64_t)(b.i64 / a.i64)
     };
     ip++;
+  } return OK;
+  case FAST_IO_WRITE: {
+    /*
+      @stack:
+      stream ptr(points to heap string allocated) size
+
+    */
+    auto stream = this->stack[this->stack_size - 3];
+    auto ptr	= this->stack[this->stack_size - 2];
+    auto size	= this->stack[this->stack_size - 1];
+    
+    // ptr -> allocated_stuff
+    // ptr -> heap -> char
+
+    write((int)stream.i64,
+	  *(const void**)ptr.ptr,
+    	  (int)size.i64);
+
+    this->stack_size -= 3;
+    ip++;
+    
   } return OK;
   case FAST_DUMPI: {
     auto a = this->stack[--this->stack_size].i64;

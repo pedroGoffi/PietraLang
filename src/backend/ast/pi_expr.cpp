@@ -31,6 +31,7 @@ public:
 
 enum ExprKind {
   EXPR_INT,		// INT
+  EXPR_STRING,          // '"' * '"'
   EXPR_NAME_LITERAL,	// NAME
   EXPR_BINARY,		// expr OP expr
   EXPR_CMP,		// expr OP expr
@@ -55,6 +56,7 @@ public:
   std::unique_ptr<pi_type> type;
   union{
     int                       INT;
+    const char*               STR;
     Cast*                     cast;
     vector<unique_ptr<Expr>>* expr_list;
   };

@@ -13,8 +13,8 @@ private:
   string              name_;
   unique_ptr<Expr>    expr_;
   bool                mut_;
-  unique_ptr<pi_type> type_;
 public:
+  unique_ptr<pi_type> type_;
   pi_variable(string name, unique_ptr<pi_type> type, unique_ptr<Expr> expr, bool mut = false)
   {
 

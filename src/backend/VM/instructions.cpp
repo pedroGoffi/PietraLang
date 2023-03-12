@@ -31,7 +31,9 @@ enum InstKind{
   JMP_IF,
   CMPI_FG,
   // ptr inst
-  LOAD_PTR  
+  LOAD_PTR,
+  // multiple args
+  FAST_IO_WRITE // @stack: stream ptr
 };
 const char* Human_InstKind(InstKind k){
   switch(k){
@@ -45,6 +47,7 @@ const char* Human_InstKind(InstKind k){
   case FAST_MULI:	return "fast_mul_i64";
   case FAST_DIVI:	return "fast_div_i64";
   case FAST_DUMPI:	return "fast_dump_i64";
+  case FAST_IO_WRITE:   return "fast_io_write";
   case JMP:             return "jump";
   case WRITE64:		return "write_64bytes";
   case STORE64:		return "store_64bytes";

@@ -64,6 +64,11 @@ std::unique_ptr<Expr> Parser::operand_expr(){
     this->tokenizer->next();   
     return Expr_int(val);
   }
+  else if(this->tokenizer->token.kind == TK_STRING_LITERAL){
+    Token tk = this->tokenizer->token;
+    this->tokenizer->next();
+    return Expr_str(tk);
+  }
   //// NAME LITERAL
   else if(this->tokenizer->is_tk(TK_NAME)){
     Token tk = this->tokenizer->token;
@@ -274,12 +279,12 @@ std::unique_ptr<Expr> Parser::and_expr(){
 std::unique_ptr<Expr> Parser::ternary(){
   // or_expr ('if' ternary_expr else' ternary_expr)*
   auto and_expr = this->and_expr();
-  if(this->tokenizer->token.text == "test"){
+  if(this->tokenizer->token.text == "teste"){
     this->tokenizer->next();
     // ternary struct
     auto if_expr = this->ternary();
     
-    if(this->tokenizer->token.text != "else"){
+    if(this->tokenizer->token.text != "senao"){
       this->syntax_error("expected the keyword 'else' after test expression.\n");
       exit(1);
     }
@@ -307,7 +312,7 @@ std::unique_ptr<Expr> Parser::expr(){
 
 std::unique_ptr<Stmt>  Parser::PWhile(){
   // while expr stmt
-  assert(this->tokenizer->token.text == "while");  
+  assert(this->tokenizer->token.text == "enquanto");  
   this->tokenizer->next();
   
   auto expr      = this->expr();
@@ -316,7 +321,7 @@ std::unique_ptr<Stmt>  Parser::PWhile(){
 }
 
 std::unique_ptr<Stmt>  Parser::PIf(){
-  assert(this->tokenizer->token.text == "if");
+  assert(this->tokenizer->token.text == "se");
   
   this->tokenizer->next();  
   auto expr      = this->expr();
@@ -377,11 +382,11 @@ std::unique_ptr<pi_type> Parser::type(){
   return type;
 }
 std::unique_ptr<Stmt> Parser::stmt(){
-  if(this->tokenizer->token.text == "if"){
+  if(this->tokenizer->token.text == "se"){
     return this->PIf();
   }
   
-  if(this->tokenizer->token.text == "while"){
+  if(this->tokenizer->token.text == "enquanto"){
     return this->PWhile();
   }
    
@@ -395,7 +400,7 @@ std::unique_ptr<Decl> Parser::decl(){
   bool pre_processed_entity = false;
 
 
-  if (str == "let" or str == "const"){
+  if (str == "decl" or str == "const"){
     printf("OK GLOBAL VAR.\n");
     bool var_mutable = false;
     bool cte = str == "const";
@@ -452,11 +457,11 @@ std::unique_ptr<Decl> Parser::decl(){
       Syntax:
         NAME :: (inline)* (extern)* '(' ARGS ')' STMT
     */
-    if(this->tokenizer->token.text == "inline"){
+    if(this->tokenizer->token.text == "alinhada"){
       this->tokenizer->next();
       proc->inlined() = true;
     }
-    if(this->tokenizer->token.text == "extern"){
+    if(this->tokenizer->token.text == "externa"){
       this->tokenizer->next();
       proc->externed() = true;
     }

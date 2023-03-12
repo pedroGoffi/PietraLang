@@ -5,35 +5,71 @@
 
 bool load_vars = true;
 
-
-CT_Types Compiler::expr(unique_ptr<Expr> expr){
+unique_ptr<pi_type> Compiler::expr(unique_ptr<Expr> expr){
   switch(expr->kind){
   case EXPR_INT:
     this->vm.push1(PUSH, Word_i64(move(expr->INT)));
-    return DATA;
+    return Type_i64();
+  case EXPR_STRING: {
+    static size_t string_count	= 0;
+    std::string id		= std::to_string(string_count++);
+    const char* str = expr->token.text.c_str();
+    int str_len = (int)strlen(expr->token.text.c_str());
+
+    Err err = this->vm.Heap_alloc(id,
+				  sizeof(Word),
+				  Word_i64(0));
+    assert(err == OK);
+    Allocated_Obj* str_alloc = this->vm.Heap_find(id);
+
+    this->vm.heap[str_alloc->offset] = { .ptr = (void*) str };
     
+    Compiled_string compiled_str = {
+      .id         = id,
+      .allocation = *str_alloc
+    };
+    Compiled_string::push(compiled_str);
+
+    Word str_addr ={
+      .ptr = (void*)(int64_t*)&this->vm.heap[compiled_str.allocation.offset]
+    };
+    
+   
+    this->vm.push1(PUSH, str_addr);
+    this->vm.push1(PUSH, Word_i64(str_len));
+
+    
+    
+    printf("WARNING! TODO STRING RETURN TYPE.\n");
+    return Type_i64();
+  }
   case EXPR_NAME_LITERAL: {
-    if(Allocated_Obj* al = this->vm.Heap_find(expr->token.text)){
-      // load the heap obj in stack
-      printf("OKASODKAISDIOAS\n");
-      Word var_addr = {
-	.ptr = (void*)(int64_t*)&this->vm.heap[al->offset]
-      };
-      
+
+    if(Compiled_var* var = Compiled_var::find(compiled_vars, expr->token.text)){
+      // get variable addr
+      Word var_addr = { .ptr = (void*)(int64_t*)&this->vm.heap[var->allocation.offset] };
+
+      // load in the stack as a c pointer
       this->vm.push1(PUSH, var_addr);
       if(load_vars) {
-	this->vm.push0(LOAD_PTR);
-      }	
-      return PTR;
+	// get the value of the pointer if not assign base-context
+      	this->vm.push0(LOAD_PTR);
+      }
+      
+      return move(var->type);
     }
-    printf("Err: EXPR_NAME_LITERAL: %s\n",
+    printf("Error: the name '%s' was not declared in this scope\n",
 	   expr->token.text.c_str());
-    exit(1);
+    exit(1);    
   } break;
+    
   case EXPR_BINARY: {
+    // FIXME LHS is comming NULL
     auto lhs = this->expr(move(expr->lhs));
     auto rhs = this->expr(move(expr->rhs));
-    if(lhs == VOID or rhs == VOID){
+    // TODO: binary type check    
+    
+    if(0){
       assert(false && "INTERNAL ERROR WHILE TRING TO ADD TWO VOID DATA TYPE");
     }
     string op = move(expr->token.text);
@@ -52,10 +88,10 @@ CT_Types Compiler::expr(unique_ptr<Expr> expr){
     else
       assert(false && "unreachable");
     
-    return lhs;
+    return rhs;
   }
   case EXPR_LIST: {
-    CT_Types last_expr = VOID;
+    unique_ptr<pi_type> last_expr;
     for(size_t i=0; i < move(expr->expr_list->size()); ++i){
       last_expr = this->expr(move((*expr->expr_list)[i]));
     }
@@ -66,7 +102,16 @@ CT_Types Compiler::expr(unique_ptr<Expr> expr){
     if(expr->token.text == "dump"){
       this->expr(move(expr->base));
       this->vm.push0(FAST_DUMPI);
-      return VOID;
+      return NULL;
+    }
+    else if(expr->token.text == "write"){
+      // @stack:
+      // str_addr
+      // TODO: get rid of str_len stack push when compiling strings
+      this->vm.push1(PUSH, Word_i64(1));
+      this->expr(move(expr->base));
+      this->vm.push0(FAST_IO_WRITE);
+      return NULL;
     }
     else
       assert(false && "unreachable");
@@ -77,10 +122,15 @@ CT_Types Compiler::expr(unique_ptr<Expr> expr){
       load_vars = false;
       auto ret = this->expr(move(expr->rhs));
       load_vars = true;
-      
+      printf("Err: TODO: Type_ptr(pi_type)\n");
       return ret;
     }
-    if(op == "*"){
+    else if(op == "!"){
+      auto ret = this->expr(move(expr->rhs));
+      this->vm.push0(NOT);
+      return ret;
+    }
+    else if(op == "*"){
       /*
         // ptr struct:
         addr -> ptr -> addr -> value
@@ -89,6 +139,7 @@ CT_Types Compiler::expr(unique_ptr<Expr> expr){
 	// *ptr		= value
       */
       auto ret = this->expr(move(expr->rhs));
+      printf("Err: TODO: pi_type->points_to\n");
       this->vm.push0(LOAD_PTR);
       return ret;
     }
@@ -103,13 +154,20 @@ CT_Types Compiler::expr(unique_ptr<Expr> expr){
   case EXPR_ASSIGN: {
     assert(expr->base->kind == EXPR_NAME_LITERAL);
     load_vars = false;
-    this->expr(move(expr->base));
-    load_vars = true;
+    auto base = this->expr(move(expr->base));
+
     // addr
-    this->expr(move(expr->rhs));
+    load_vars = true;    
+    auto rhs  = this->expr(move(expr->rhs));
     // addr value
+    // ERROR AT GET VARIABLE NAME
+    if(0){
+      printf("Error: can not asign a void value into a variable.\n");
+      exit(1);
+    }
     this->vm.push0(WRITE64);
-    return VOID;
+    printf("Err: TODO: Type_cmp(base, rhs)\n");
+    return base;
   };
   case EXPR_CMP: {
     std::string op = expr->token.text;
@@ -146,30 +204,45 @@ CT_Types Compiler::expr(unique_ptr<Expr> expr){
 	     op.c_str());
       exit(1);
     }
+    // bool := i8
+    return Type_i64();
     
-    return DATA;
   };
   default:
     Expr::print(stderr, move(expr));
     assert(false && "Something went wrong!!");
   }
 }
-CT_Types Compiler::stmt(unique_ptr<Stmt> stmt){
+unique_ptr<pi_type> Compiler::stmt(unique_ptr<Stmt> stmt){
   switch(stmt->kind){
   case ST_EXPR: {
     auto e = this->expr(move(*stmt->expr));
-    if(e != VOID)
+
+    if(e)
       this->vm.push0(POP);
     
     return e;
   }
   case ST_BLOCK: {
-    CT_Types last_expr = VOID;
+    unique_ptr<pi_type> last_expr;
     for(size_t i=0; i < move(stmt->block->size()); ++i){
       last_expr = this->stmt(move((*stmt->block)[i]));
     }
     return last_expr;
   };
+  case ST_IF: {
+    auto iif =   move(*stmt->ifBlock);
+    // if expr block
+    this->expr(move(iif->expr));
+    this->vm.push0(NOT);
+    
+    int jmp_pos = (int) this->vm.program.size();
+    this->vm.push0(JMP_IF);
+    this->stmt(move(iif->block));
+    
+    this->vm.program[jmp_pos].op_a.i64 = (int)this->vm.program.size();
+    
+  } return NULL;
   case ST_WHILE: {
     auto whl = move(*stmt->whileLoop);
 
@@ -183,13 +256,13 @@ CT_Types Compiler::stmt(unique_ptr<Stmt> stmt){
     this->vm.push1(JMP, Word_i64(bgin_pos));
     
     this->vm.program[jmp_pos].op_a.i64 = (int)this->vm.program.size();
-    return VOID;
+    return NULL;
   }    
   default:
     assert(false && "Something went wrong!!");
   }
 }
-CT_Types Compiler::decl(unique_ptr<Decl> decl){
+unique_ptr<pi_type> Compiler::decl(unique_ptr<Decl> decl){
   switch(decl->kind){
   case DeclKind::DC_PROC: {
     assert(decl->proc);
@@ -205,7 +278,8 @@ CT_Types Compiler::decl(unique_ptr<Decl> decl){
     }
 
     this->stmt(move(*proc->block_));
-  } break;
+    return move(proc->ret_type);
+  } 
   case DC_VAR: {
     auto  var = move(*decl->var);
     // check: var already declared?
@@ -220,15 +294,22 @@ CT_Types Compiler::decl(unique_ptr<Decl> decl){
 				  sizeof(Word),
 				  Word_i64(0));
     assert(err == OK);
+    Compiled_var comp_var = {
+      .id               = name,
+      .type		= move(var->type_),
+      .allocation	= move(*this->vm.Heap_find(name))
+    };
+
+    Compiled_var::push(move(comp_var));
     // TODO: check if assignment
     if(var->expr()){
       printf("internal_error: global vars does not support expression assignment.\n");
     }
+    return move(var->type_);
   } break;
   default:
     assert(false && "Something went wrong!!");
   }
-  return VOID;
 }
 
 void Compiler::codegen(Module* mod){

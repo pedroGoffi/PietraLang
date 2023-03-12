@@ -11,7 +11,7 @@ class pi_type{
   bool     const_;
   bool     undefined_;
   // TODO: pi_type_template
-
+  
 
 public:
   pi_type()

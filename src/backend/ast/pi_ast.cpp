@@ -5,11 +5,25 @@
 #include "./pi_variable.cpp"
 
 using namespace std;
+
+
+unique_ptr<class pi_type> Type_i64(){
+  return make_unique<pi_type>(pi_type(
+				      "i64",
+				      sizeof(int64_t)));
+}
 unique_ptr<class Expr> Expr_int(int val){
   unique_ptr<class Expr> ret	= make_unique<class Expr>(Expr());
   ret->kind		= EXPR_INT;
   ret->INT		= val;
-  return ret;
+  return ret;  
+}
+unique_ptr<class Expr> Expr_str(Token tk){
+  unique_ptr<class Expr> ret	= make_unique<class Expr>(Expr());
+  ret->kind		= EXPR_STRING;
+  ret->token            = tk;
+
+  return ret;  
 }
 unique_ptr<class Expr> Expr_unary(Token            token,
 			    unique_ptr<class Expr> rhs){
@@ -47,6 +61,7 @@ unique_ptr<class Expr> Expr_cast(Cast* cast){
   ret->cast             = cast;
   return ret;    
 }
+
 unique_ptr<class Expr> Expr_var(
 			  unique_ptr<pi_type> type,
 			  unique_ptr<class Expr>    base,

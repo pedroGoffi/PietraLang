@@ -120,7 +120,7 @@ Token* Tokenizer::next(){
  _TOKENIZER_NEXT:
   const char* strBegin = this->stream;
   
-  if(*this->stream == ' '){
+  if(*this->stream == ' ' or *this->stream == '\t'){
     col_diff++;
     
     this->stream++;
@@ -181,14 +181,24 @@ Token* Tokenizer::next(){
   }
   // STRINGS
   else if(*this->stream == '"'){
-    this->stream++;
     strBegin = this->stream;
-    while(*this->stream and *this->stream != '"')
-      ++this->stream;
+
+    this->stream++;
+    while(*this->stream != '"' and *this->stream != '\0'){
+      this->stream++;
+    }
+
+
+    if(*this->stream != '"'){
+      printf("Syntax error: expected '\"' at the end of a string but got: %s\n",
+	     this->stream);
+      exit(1);
+    }
+    this->stream++;
     
-    assert(*this->stream == '"');
     this->token.kind = TokenKind::TK_STRING_LITERAL;
-    this->token.text = Scanner::str_ptr_range(strBegin, this->stream);
+    assert(strBegin != this->stream);
+    this->token.text = Scanner::str_ptr_range(strBegin + 1, this->stream - 1);
     this->token.pos.line += line_diff;
     this->token.pos.col  += col_diff;
     return &this->token;

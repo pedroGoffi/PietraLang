@@ -1,13 +1,14 @@
-let f0: i64;
-let f1: i64;
-let f2: i64;
-const LIM: i64;
+decl f0:  i64;
+decl f1:  i64;
+decl f2:  i64;
+decl LIM: i64;
 
 main:: () -> int {
-  f1 = 1
-  LIM = 10000
+
   
-  while(f0 < LIM){
+  enquanto f0 < 1000{
+    se !f1
+      f1 = 1
     f0 = f1 + f2
     f1 = f2
     f2  = f0  
